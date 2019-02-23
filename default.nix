@@ -1,6 +1,6 @@
 # based on a file that ciruclated in the NIX mailing list.
 # https://www.mail-archive.com/nix-dev@lists.science.uu.nl/msg37961.html
-{ nixpkgsPath ? ./nixpkgs.nix}:
+{ nixpkgsPath ? ./nixpkgs.nix }:
 let
   pkgs = import nixpkgsPath {
     # ensure we don't get an impure config
@@ -47,13 +47,12 @@ let
             if res.success then res.value else {}
           );
 
-  concatInputs = pkgs.lib.concatMapStrings (x: (builtins.toString x) + " ");
+  concatInputs = lib.concatMapStrings (x: (builtins.toString x) + " ");
   getStoreInfo = platform: recurse: depth: level:
     lib.mapAttrs
-    (n: v: 
+    (n: v:
         let
-          res=builtins.tryEval (
-            (
+          res = builtins.tryEval (
              if recurse && (builtins.typeOf v) == "set" && builtins.elem n packs && depth < 2 then
                 getStoreInfo platform recurse (depth + 1) ''${level}.${n}'' v
              else
@@ -63,24 +62,23 @@ let
                ''${if v ? name then v.name else ""}, '' +
                ''${if v ? drvPath then (builtins.toString v.drvPath) else ""}, '' +
                ''${if v ? buildInputs then (concatInputs v.buildInputs) else ""}''
-               )
                );
         in
           if res.success then res.value else ''${n}, ${level}, , , ,''
           );
 
-  nestedPkgsToString = pkgs.lib.concatMapStrings
+  nestedPkgsToString = lib.concatMapStrings
   (x: (if ((builtins.typeOf x) == "set") then nestedPkgsToString (builtins.attrValues x) else if x==null then "" else x + "\n"));
 
 
 in rec
 {
-  inherit pkgs;
+  inherit pkgs lib;
 
   # This shouldn't stop due to eval errors, but expect plenty of build
   # failures. Better run with "--keep-going" if you want to build as much as
   # possible.
   filtered = myfilter "x86_64-linux" recurseYes 1 "pkgs" pkgs;
   storeInfo = getStoreInfo "x86_64-linux" recurseYes 1 "pkgs" pkgs;
-  storeFile = nestedPkgsToString (pkgs.lib.attrValues storeInfo);
+  storeFile = nestedPkgsToString (lib.attrValues storeInfo);
 }
